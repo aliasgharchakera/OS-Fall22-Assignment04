@@ -1,0 +1,11 @@
+Starting traffic simulation with 4 cars ...
+The street is ready to use
+Incoming car 0 has entered and travels for 68 minutes
+Incoming car 0 has travelled and prepares to leave
+Incoming car 1 has entered and travels for 66 minutes
+Incoming car 2 has entered and travels for 33 minutes
+Incoming car 1 has travelled and prepares to leave
+Incoming car 3 has entered and travels for 28 minutes
+Incoming car 2 has travelled and prepares to leave
+Incoming car 3 has travelled and prepares to leave
+Traffic simulation complete.

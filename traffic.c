@@ -13,7 +13,7 @@
 /* Constants for simulation */
 
 #define ALLOWED_CARS 3          	/* Number of cars allowed on street at a time */
-#define USAGE_LIMIT 10   			/* Number of times the street can be used before repair */
+#define USAGE_LIMIT 7   			/* Number of times the street can be used before repair */
 #define MAX_CARS 1000       		/* Maximum number of cars in the simulation */
 
 #define INCOMING "Incoming"
@@ -26,6 +26,11 @@ static pthread_cond_t street = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t repair = PTHREAD_COND_INITIALIZER;
 static pthread_cond_t allowed_car = PTHREAD_COND_INITIALIZER;
+
+pthread_mutex_t lock_street_usable = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t lock_traffic_check = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t lock_cars_limit = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t lock_repair_signal = PTHREAD_MUTEX_INITIALIZER; 
 
 /* These obvious variables are at your disposal. Feel free to remove them if you want */
 static int cars_on_street;   		/* Total numbers of cars currently on the street */
@@ -78,7 +83,7 @@ static int initialize(car *arr, char *filename) {
 static void repair_street() {
 	printf("The street is being repaired now.\n");
 	cars_since_repair = 0;
-	sleep(5);
+	usleep(5);
 }
 
 /* Code for the street which repairs it when necessary and is cyclic. Needs to be synchronized
@@ -92,7 +97,7 @@ void *street_thread(void *junk) {
 
 	/* Loop while waiting for cars to arrive. */
     while (1) {
-		if (cars_since_repair >= USAGE_LIMIT){
+		if (cars_since_repair == USAGE_LIMIT){
             pthread_mutex_lock(&mtx);
             repair_street();
 
@@ -121,12 +126,12 @@ void incoming_enter() {
 		pthread_cond_wait(&outgoing_street,&mtx);
 
 
-	while (7 < cars_on_street)
+	while (ALLOWED_CARS < cars_on_street)
 		pthread_cond_wait(&allowed_car, &mtx);
 
 
 	if (USAGE_LIMIT > cars_since_repair & ALLOWED_CARS > cars_on_street){
-		sleep(1);
+		usleep(1);
 		cars_on_street ++; incoming_onstreet ++;
 		
 	}
@@ -143,7 +148,7 @@ void outgoing_enter() {
  
 	pthread_mutex_lock(&mtx);
 	
-	while (7 < cars_on_street)
+	while (ALLOWED_CARS < cars_on_street)
 		pthread_cond_wait(&allowed_car, &mtx);
 	
 
@@ -166,7 +171,7 @@ void outgoing_enter() {
  * You do not need to add anything here.  
  */
 static void travel(int t) {
-	sleep(t);
+	usleep(t);
 }
 
 
@@ -174,18 +179,18 @@ static void travel(int t) {
  * You need to implement this.
  */
 static void incoming_leave() {
-	
+	if (cars_on_street > 0 ){
 	pthread_mutex_lock(&mtx);
 	incoming_onstreet --; cars_on_street --;
-	
 	cars_since_repair ++;
 	
-    if (7 > cars_on_street){
+    if (ALLOWED_CARS > cars_on_street){
 		pthread_cond_signal(&allowed_car);
 	}
 
 	pthread_cond_signal(&incoming_street);
 	pthread_mutex_unlock(&mtx);
+	}
 
 }
 
@@ -199,7 +204,7 @@ static void outgoing_leave() {
 	cars_on_street --; outgoing_onstreet --;
     
 	cars_since_repair ++;
-	if (7 > cars_on_street)
+	if (ALLOWED_CARS > cars_on_street)
 		pthread_cond_signal(&allowed_car);
 
 	pthread_cond_signal(&outgoing_street);
@@ -285,7 +290,7 @@ int main(int nargs, char **args) {
 
 	for (i=0; i < num_cars; i++) {
 		car_info[i].car_id = i;
-		sleep(car_info[i].arrival_time);
+		usleep(car_info[i].arrival_time);
 
 		if (strcmp(car_info[i].car_direction, INCOMING)==0)
 			result = pthread_create(&car_tid[i], NULL, incoming_thread, (void *)&car_info[i]);
